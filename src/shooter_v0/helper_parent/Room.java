@@ -2,22 +2,20 @@ package shooter_v0.helper_parent;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
-import shooter_v0.engine.TaskManager;
+import shooter_v0.Engine;
 
 abstract public class Room {
 	protected Shell shell;
-	protected Display display;
 	protected Composite composite;
-	protected TaskManager parent;
+	protected Engine parentEngine;
+	public String name="default";
 	
-	public void create(TaskManager parent)
+	public Room(Engine parentEngine)
 	{
-		this.parent=parent;
-		this.shell=parent.getShell();
-		this.display=parent.getDisplay();
+		this.parentEngine=parentEngine;
+		this.shell=this.parentEngine.getShell();
 		composite=new Composite(shell,SWT.NONE);
 		composite.setSize(shell.getClientArea().width , shell.getClientArea().height);
 		composite.setEnabled(false);

@@ -2,6 +2,10 @@ package shooter_v0.objects;
 
 import java.util.Random;
 
+import org.eclipse.swt.graphics.Color;
+
+import shooter_v0.Map;
+
 
 public class Actor extends Player {
 	private static final double MOUSE_SENSIVITY = 0.2;
@@ -9,9 +13,14 @@ public class Actor extends Player {
 	private static final int MAX_SLIDE_ANGLE = 90;//максимальный угол в градусах относительно плоскости стены когда игрок, упершись в нее движется вдоль
 	private static final double STEP_ACCURACY = 0.1;
 
+	public Actor()
+	{
+		color=new Color(null,0,0,255);
+	}
+	
 	Point2d tryMove(double or, Map map)
 	{
-		Point2d buf=new Point2d(x,y);
+		Point2d buf=new Point2d(pos.x,pos.y);
 		double pathDist=0;
 		while (pathDist<MOVE_SPEED)
 		{
@@ -48,23 +57,24 @@ public class Actor extends Player {
 	public void create(Map map)
 	{
 		System.out.println("actor location");
+		loadModel("models/player.obj");
 		Random rand=new Random();
 		do
 		{
-			x=rand.nextInt(Map.MAP_SIZE-PLAYER_SIZE*2)-Map.MAP_SIZE/2;
-			y=rand.nextInt(Map.MAP_SIZE-PLAYER_SIZE*2)-Map.MAP_SIZE/2;
-		} while (map.crossCircle(x, y, PLAYER_SIZE));
+			pos.x=rand.nextInt((int) (Map.MAP_SIZE-PLAYER_SIZE*2)-1)-Map.MAP_SIZE/2;
+			pos.y=rand.nextInt((int) (Map.MAP_SIZE-PLAYER_SIZE*2)-1)-Map.MAP_SIZE/2;
+		} while (map.crossCircle(pos.x, pos.y, PLAYER_SIZE));
 	}
 	
 	public boolean move(Boolean[] movePad, Map map) {
-		double ornt = -orientation/180*Math.PI;
+		double ornt = orientation/180*Math.PI;
 		//System.out.println("x: "+x+"   y: "+y);
 		for (int i=0; i<4; i++){
 			if (movePad[i]){
 				Point2d step=tryMove(ornt-i*Math.PI/2,map);
 				//System.out.println(x-step.x);
-				x=(float) step.x;
-				y=(float) step.y;
+				pos.x= step.x;
+				pos.y= step.y;
 				return true;
 			}
 		}
@@ -73,9 +83,10 @@ public class Actor extends Player {
 
 	public Bullet fire()
 	{
-		Point3d speed=new Point3d(-Bullet.MAX_SPEED*Math.sin(-orientation*Math.PI/180),-Bullet.MAX_SPEED*Math.cos(-orientation*Math.PI/180),0);
-		Point3d pos=new Point3d(x,y,PLAYER_SIZE/3);
-		Bullet bullet=new Bullet(pos,speed);
+		Point3d speed=new Point3d(Bullet.MAX_SPEED*Math.sin(orientation*Math.PI/180),Bullet.MAX_SPEED*Math.cos(orientation*Math.PI/180),0);
+		Point3d posBuf=new Point3d(pos.x,pos.y,PLAYER_SIZE*2/3);
+		Bullet bullet=new Bullet(posBuf,speed);
 		return bullet;
 	}
+
 }

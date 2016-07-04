@@ -5,11 +5,21 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 
-import shooter_v0.engine.TaskManager;
+import shooter_v0.Engine;
 
 abstract public class InsertedMenu extends Menu {
-	public static final String BACK_BUTTON_TEXT = "в главное меню";
+	public InsertedMenu(Engine parentEngine, Menu backMenu) {
+		super(parentEngine);
+		this.backMenu=backMenu;
+		backButton=new Button(composite,SWT.PUSH);
+		backButton.setText("в "+backMenu.name);
+		backButton.setBounds(0, shell.getClientArea().height-BUTTONS_HEIGHT, COLUMN_WIDHT, BUTTONS_HEIGHT);
+		setListener();
+	}
+
 	protected Button backButton;
+	protected Menu backMenu;
+	protected abstract void back();
 	
 	protected void setListener()
 	{
@@ -17,17 +27,10 @@ abstract public class InsertedMenu extends Menu {
 			public void handleEvent(Event e) {
 				composite.setEnabled(false);
 				composite.setVisible(false);
-				parent.menu.open();
+				back();
+				backMenu.open();
 			}			
 		});
 	}
 	
-	 public void create(TaskManager parent, boolean isInserted)
-	{
-		create(parent);
-		backButton=new Button(composite,SWT.PUSH);
-		backButton.setText(BACK_BUTTON_TEXT);
-		backButton.setBounds(0, shell.getClientArea().height-BUTTONS_HEIGHT, COLUMN_WIDHT, BUTTONS_HEIGHT);
-		setListener();
-	}
 }

@@ -2,6 +2,8 @@ package shooter_v0.objects;
 
 import org.eclipse.swt.graphics.Color;
 
+import shooter_v0.Map;
+
 public class Bullet extends Model{
 	public static final double MAX_SPEED = 5;
 	public Point3d speed;
@@ -21,12 +23,6 @@ public class Bullet extends Model{
 		this.pos=pos;
 		this.color=new Color(null,250,200,100);
 		this.name="bullet";
-		Polygon plgbuf=new Polygon();
-		plgbuf.v.add(new Point3d(-1,-1,0));
-		plgbuf.v.add(new Point3d(1,-1,0));
-		plgbuf.v.add(new Point3d(1,1,0));
-		plgbuf.v.add(new Point3d(-1,1,0));
-		plgbuf.norm=new Point3d(0,0,-1);
-		this.polygons.add(plgbuf);
+		loadModel("models/bullet.obj");
 	}
 }

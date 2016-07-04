@@ -4,52 +4,49 @@ import java.io.Serializable;
 
 import org.eclipse.swt.graphics.Color;
 
-public class Player extends Obj implements Serializable {
-	public static final int PLAYER_SIZE=2;
-	
-	protected float x=0;
-	protected float y=-5;
-	protected double orientation=0;
+
+public class Player extends Model {
+	public static final double PLAYER_SIZE=2.5;
+
+
+	private static final double PLAYER_CAMERA_HEIGHT = 8;
+
+
+	private static final double CAMERA_DIST = 10;
+
 	int hp;
-	public String name;
+	public String login;
 	
 	public Player()
 	{
 		this.color=new Color(null,255,00,0);
-		Polygon plgbuf=new Polygon();
-		plgbuf.v.add(new Point3d(-1,-1,100));
-		plgbuf.v.add(new Point3d(1,-1,100));
-		plgbuf.v.add(new Point3d(1,1,0));
-		plgbuf.v.add(new Point3d(-1,1,0));
-		plgbuf.norm=new Point3d(0,0,-1);
-		this.polygons.add(plgbuf);
 	}
 	
 	public String getName()
 	{
-		return name;
+		return login;
 	};
 	public void setName(String newName)
 	{
-		name=newName;
+		login=newName;
 	};
 	
 	public void setX(int x)
 	{
-		this.x=x;
+		this.pos.x=x;
 	};
-	public float getX()
+	public double getX()
 	{
-		return x;
+		return pos.x;
 	};
 	
 	public void setY(int y)
 	{
-		this.y=y;
+		this.pos.y=y;
 	};
-	public float getY()
+	public double getY()
 	{
-		return y;
+		return pos.y;
 	};
 	
 	public void setHP(int hp)
@@ -61,13 +58,12 @@ public class Player extends Obj implements Serializable {
 		return hp;
 	};
 	
-	public void setOrientation(double angle)
-	{
-		this.orientation=angle;
-	};
-	public double getOrientation()
-	{
-		return orientation;
-	};
+	public Camera getCamera() {	
+		Point3d bufPoint=new Point3d();
+		bufPoint.x=pos.x-CAMERA_DIST*Math.sin(orientation/180*Math.PI);
+		bufPoint.y=pos.y-CAMERA_DIST*Math.cos(orientation/180*Math.PI);
+		bufPoint.z=PLAYER_CAMERA_HEIGHT;
+		return new Camera(bufPoint,orientation);
+	}
 	
 }

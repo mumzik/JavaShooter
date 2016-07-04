@@ -6,13 +6,20 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
-import shooter_v0.engine.TaskManager;
+import shooter_v0.Engine;
 
 public abstract class Menu extends Room {
-	public static final int COLUMN_WIDHT = 200;
-	public static final int BUTTONS_HEIGHT = 50;
-	public static final Color MENU_COLOR = new Color(null,100,100,100);
-	protected void setBackground(){
+	
+	public Menu(Engine parentEngine) {
+		super(parentEngine);
 		composite.setBackground(MENU_COLOR);
+	}
+	protected static final int COLUMN_WIDHT = 200;
+	protected static final int BUTTONS_HEIGHT = 50;
+	protected static final Color MENU_COLOR = new Color(null,100,100,100);
+	public void exit()
+	{
+		composite.setVisible(false);
+		composite.setEnabled(false);
 	}
 	}
