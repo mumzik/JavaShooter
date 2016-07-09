@@ -10,6 +10,7 @@ import org.eclipse.swt.widgets.Text;
 import shooter_v0.Engine;
 import shooter_v0.helper_parent.InsertedMenu;
 import shooter_v0.helper_parent.Menu;
+import shooter_v0.helper_parent.NetInteraction;
 
 public class SelectServerMenu extends InsertedMenu {
 
@@ -43,7 +44,7 @@ public class SelectServerMenu extends InsertedMenu {
 				composite.setEnabled(false);
 				composite.setVisible(false);
 				parentEngine.client.connect(selectIpEdit.getText());
-				parentEngine.netType="client";
+				parentEngine.setNetType(NetInteraction.CLIENT);;
 				parentEngine.joinGameMenu.open();					
 			}			
 		});	

@@ -4,20 +4,22 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.swt.graphics.Color;
 
-abstract public class Model {
+
+public class Model implements Serializable{
 	public List<Polygon> polygons = new ArrayList<Polygon>();
-	public Color color;
+	public Color color=new Color(null,100,100,100);
 	public Point3d pos = new Point3d(0, 0, 0);
-	protected double orientation;
 	public String name = "default";
 
-	public void loadModel(String path) {
-		name = path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf("."));
+	public void loadModel(String name) {
+		String path="models/"+name+".obj";
+		this.name=name;
 		System.out.println("model " + name + " loading");
 		ArrayList<Point3d> normals = new ArrayList<Point3d>();
 		ArrayList<Point3d> vertexes = new ArrayList<Point3d>();
@@ -40,6 +42,7 @@ abstract public class Model {
 				}
 				if (buf.indexOf("f ") == 0) // строка с полигоном
 				{
+					//System.out.println("model "+name+" polygon added");
 					polygons.add(createPolygon(buf, vertexes, normals));
 					continue;
 				}
@@ -88,14 +91,6 @@ abstract public class Model {
 			e.printStackTrace();
 		}
 		return null;
-	}
-	public void setOrientation(double angle)
-	{
-		this.orientation=angle;
-	};
-	public double getOrientation()
-	{
-		return orientation;
 	}
 
 }

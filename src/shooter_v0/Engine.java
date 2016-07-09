@@ -1,10 +1,13 @@
 package shooter_v0;
 
+
+
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
 
+import shooter_v0.helper_parent.NetInteraction;
 import shooter_v0.net.Client;
 import shooter_v0.net.Server;
 import shooter_v0.rooms.CreateGameMenu;
@@ -14,7 +17,7 @@ import shooter_v0.rooms.OnlineGameMenu;
 import shooter_v0.rooms.SelectServerMenu;
 import shooter_v0.rooms.SettingsMenu;
 
-public class Engine implements EngineInterface {
+public class Engine {
 	
 	public Game game;	
 	private Display display;
@@ -28,7 +31,7 @@ public class Engine implements EngineInterface {
 	public SelectServerMenu selectServerMenu;
 	public SettingsMenu settings;
 	public String login="default";
-	public String netType="offline";
+	public String netType=NetInteraction.OFFLINE;
 
 	public String getLogin() {
 		return login;
@@ -61,8 +64,7 @@ public class Engine implements EngineInterface {
 	      onlineGameMenu=new OnlineGameMenu(this, mainMenu);
 	      joinGameMenu=new JoinGameMenu(this, onlineGameMenu);
 	      createGameMenu=new CreateGameMenu(this, onlineGameMenu);
-	      selectServerMenu=new SelectServerMenu(this, onlineGameMenu);
-	      
+	      selectServerMenu=new SelectServerMenu(this, onlineGameMenu);	      
 	      mainMenu.open();
 		  
 	      while( !shell.isDisposed() ) {

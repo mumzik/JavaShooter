@@ -6,27 +6,31 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
-import java.net.InetAddress;
+import java.io.Serializable;
 import java.net.Socket;
 
-import org.eclipse.swt.widgets.Shell;
-
-import shooter_v0.EngineInterface;
+import shooter_v0.Engine;
 
 public abstract class NetInteraction extends DebugClass {
-	private static final int DEBUGING_LEVEL = 1;
 	public static final String DISCONNECT_COMMAND = "DISCONNECT";
 	public static final String DISCONNECT_QUERY="DISCONNECT ME";
+	public static final String OFFLINE="offline";
+	public static final String SERVER="server";
+	public static final String CLIENT="client";
+	public static final String PLAYERS_REFRESH="get players states";	
+	public static final String REFRESH_ME="refresh this player";
+	public static final String START_GAME = "game start";
 	protected Socket socket;
-	protected EngineInterface parentEngine;
-	protected String type;
+	protected Socket objSocket;
+	protected Engine parentEngine;
+	protected String localNetType;
 	protected Thread waitTextMessages;
 	protected PrintWriter writer;
 	protected BufferedReader reader;
-	private NetInteraction self=this;
-
+	protected ObjectInputStream objectReader;
+	protected ObjectOutputStream objectWriter;
 	protected void listen() {
-		print("listening text",self,2);
+		print("listening text",3);
 		Runnable waitTextMessage = new Runnable() {
 			public void run() {
 				while (!Thread.interrupted()) {
@@ -34,7 +38,7 @@ public abstract class NetInteraction extends DebugClass {
 						String message = reader.readLine();
 						if (!Thread.currentThread().isInterrupted())
 						{
-							print("got message: " + message,self,1);
+							print("got message: " + message,3);
 							gotMessage(message);
 						}
 					} catch (IOException e) {
@@ -50,11 +54,11 @@ public abstract class NetInteraction extends DebugClass {
 		waitTextMessages.start();
 	}
 
-	protected abstract void gotMessage(String message);
 
+	protected abstract void gotMessage(String message);
 	public void disconnect() {
-		print("disconnecting, port on server: " + socket.getPort(),self,2);
-		parentEngine.setNetType("offline");
+		print("disconnecting, port on server: " + socket.getPort(),3);
+		parentEngine.setNetType(OFFLINE);
 		waitTextMessages.interrupt();
 		try {
 			reader.close();
@@ -69,32 +73,28 @@ public abstract class NetInteraction extends DebugClass {
 			e.printStackTrace();
 			showInfo("ошибка закрытия сокета");
 		}
+		closeTextStreams();
 
 	}
-
-
 	protected void showInfo(String text) {
 		parentEngine.getDisplay().syncExec(new Runnable() {
 			public void run() {
-				parentEngine.showMessage(type + ": " + text);
+				parentEngine.showMessage(localNetType + ": " + text);
 			}
 		});
 	}
-
 	public void sendMessage(String text)
 	{
-		print("send message "+text,self,1);
+		print("send message "+text,3);
 		writer.println(text);
 	}
-
 	public void setType(String type) {
-		this.type=type;
+		this.localNetType=type;
 		
 	}
-
-	public void initStreams()
+	public void initTextStreams()
 	{
-		print("init streams",self,3);
+		print("init text streams",4);
 		try {
 			writer=new PrintWriter(socket.getOutputStream(), true);
 		} catch (IOException e) {
@@ -106,6 +106,44 @@ public abstract class NetInteraction extends DebugClass {
 		} catch (IOException e) {
 			e.printStackTrace();
 			showInfo("ошибка создания входящего потока  сообщений");
+		}
+	}
+	public void initObjStreams()
+	{
+		print("init object streams",4);
+		try {
+			objectWriter=new ObjectOutputStream(objSocket.getOutputStream());
+		} catch (IOException e) {
+			e.printStackTrace();
+			showInfo("ошибка при создании потока отправляемых объектов");
+		}
+		try {
+			objectReader=new ObjectInputStream(objSocket.getInputStream());
+		} catch (IOException e) {
+			e.printStackTrace();
+			showInfo("ошибка при создании потока принимаемых объектов");
+		}
+	}
+	public void closeTextStreams()
+	{
+		writer.close();
+		try {
+			reader.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+			showInfo("ошибка при закрытии текстовых потоков");
+		}
+	}
+	public void sendObject(Serializable object)
+	{
+		print("send object "+object.getClass(),3);
+		try {
+			objectWriter.reset();
+			objectWriter.writeObject(object);
+			objectWriter.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+			showInfo("ошибка отправки объекта");
 		}
 	}
 }

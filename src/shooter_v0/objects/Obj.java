@@ -1,23 +1,27 @@
 package shooter_v0.objects;
 
-public class Obj extends Model{
-	public int x;
-	public int y;
-	public int width;
-	public int height;
-	
-	public Obj(int x, int y, int width, int height)
-	{
-		this.x=x;
-		this.y=y;
-		this.width=width;
-		this.height=height;
-	}
+import java.io.Serializable;
+import java.util.HashMap;
 
-	public Obj() {
-		this.x=0;
-		this.y=0;
-		this.width=0;
-		this.height=0;
+public class Obj implements Cloneable,Serializable{
+	public double x;
+	public double y;
+	public double z;
+	public double scaleX=1;
+	public double scaleY=1;
+	public double scaleZ=1;
+	public Model model;
+	public String modelName;
+	public double orientation;
+	public static Obj parseObj(Obj arg, HashMap<String, Model> models) {
+		Obj buf;
+		try {
+			buf = (Obj) arg.clone();
+			buf.model=models.get(arg.modelName);
+			return buf;
+		} catch (CloneNotSupportedException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 }

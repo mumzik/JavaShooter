@@ -1,259 +1,233 @@
 package shooter_v0;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
-import java.net.Socket;
+import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Random;
+import java.util.HashMap;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.opengl.GLCanvas;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.MessageBox;
 
+import shooter_v0.helper_parent.DebugClass;
+import shooter_v0.helper_parent.NetInteraction;
 import shooter_v0.helper_parent.Room;
 import shooter_v0.objects.Actor;
 import shooter_v0.objects.Bullet;
 import shooter_v0.objects.Camera;
 import shooter_v0.objects.Model;
-import shooter_v0.objects.Player;
-import shooter_v0.objects.Point3d;
-import shooter_v0.objects.Polygon;
 import shooter_v0.objects.Obj;
+import shooter_v0.objects.Player;
 
-class Control{	
+class Control {
 	Boolean[] movePad;
 	boolean mouseIsDown;
-	public Control(){
-		movePad=new Boolean[4];
-		mouseIsDown=false;
-		
-		for (int i=0; i<4; i++){
-			movePad[i]=false;
+
+	public Control() {
+		movePad = new Boolean[4];
+		mouseIsDown = false;
+
+		for (int i = 0; i < 4; i++) {
+			movePad[i] = false;
 		}
 	}
 }
 
-public class Game extends Room{
-		
-	protected static final int FORWARD = 119;
-	protected static final int RIGHT = 100;
-	protected static final int BACK = 115;
-	protected static final int LEFT = 97;
-	
-	public  Control control;
-	private Map map;
-	public boolean time;
-	
-	private ArrayList<Model> world;
-	private ArrayList<Player> players;
-	private ArrayList<Bullet> bullets;
+public class Game extends DebugClass {
+
+	private static final int FORWARD = 119;
+	private static final int RIGHT = 100;
+	private static final int BACK = 115;
+	private static final int LEFT = 97;
+	private static final int FPS = 50;
+	public Map map = new Map();
+	public ArrayList<Obj> world;
 	private Actor actor;
+	public ArrayList<Player> players = new ArrayList<Player>();
+	public ArrayList<Bullet> bullets;
+	private Engine parentEngine;
+	private Composite openGLComposite;
 	private GLDraw glDraw;
 	private GLCanvas canvas;
-	public String login;
+	public Timer mainTimer;
+	public Control control = new Control();
+	private boolean online;
+	public HashMap<String, Model> models = new HashMap<String, Model>();
 
-	public Game(Engine parentEngine){
-		super(parentEngine);
-		control= new Control();
-		glDraw=new GLDraw();
-		map=new Map();
-		actor=new Actor();
-		players=new ArrayList<Player>();
+	public Game(Engine parentEngine) {
+		this.parentEngine = parentEngine;
+		glDraw = new GLDraw();
+		openGLComposite = new Composite(parentEngine.getShell(), SWT.NONE);
+		openGLComposite.setSize(parentEngine.getShell().getClientArea().width,
+				parentEngine.getShell().getClientArea().height);
+		openGLComposite.setEnabled(false);
+		openGLComposite.setVisible(false);
 		bullets = new ArrayList<Bullet>();
-		world =new ArrayList<Model>();	    
+		world = new ArrayList<Obj>();
 	}
-	//—ќЅџ“»я
-	private void setListeners()
-	{
-		canvas.addListener(SWT.MouseMove, new Listener(){
+
+	private void setListeners() {
+		canvas.addListener(SWT.MouseMove, new Listener() {
 			public void handleEvent(Event e) {
-				int center=composite.getParent().getBounds().x+composite.getParent().getClientArea().width/2;
-				double rotateValue=composite.getDisplay().getCursorLocation().x-center;
+				int center = openGLComposite.getParent().getBounds().x
+						+ openGLComposite.getParent().getClientArea().width / 2;
+				double rotateValue = openGLComposite.getDisplay().getCursorLocation().x - center;
 				actor.rotate(rotateValue);
-				composite.getDisplay().setCursorLocation(center,composite.getDisplay().getCursorLocation().y);
-			}			
-		});		
-		composite.addListener(SWT.KeyDown, new Listener(){
-			public void handleEvent(Event e) {
-				//System.out.println(e.keyCode);
-				if (e.keyCode==SWT.ESC){
-					//написать отдельгым потоком веро€тно
-					MessageBox exitDialog = 
-							 new MessageBox(shell, SWT.ICON_QUESTION | SWT.OK| SWT.CANCEL);
-							 exitDialog.setMessage("выйти в главное меню?");
-							int answer = exitDialog.open();
-							if (answer==SWT.OK)
-							{
-								time=false;
-								composite.setEnabled(false);
-								composite.setVisible(false);
-								glDraw.dispose();
-								parentEngine.mainMenu.open();
-							}
-				}
-				
-				if (e.keyCode==BACK){
-					control.movePad[0]=true;
-				}
-				if (e.keyCode==RIGHT){
-					control.movePad[1]=true;
-				}
-				if (e.keyCode==FORWARD){
-					control.movePad[2]=true;
-				}
-				if (e.keyCode==LEFT){
-					control.movePad[3]=true;
-				}						
+				openGLComposite.getDisplay().setCursorLocation(center,
+						openGLComposite.getDisplay().getCursorLocation().y);
 			}
-			
-		});		
-		composite.addListener(SWT.KeyUp, new Listener(){
+		});
+		openGLComposite.addListener(SWT.KeyDown, new Listener() {
 			public void handleEvent(Event e) {
-				for (int i=0; i<4; i++){
-					control.movePad[i]=false;
+				// System.out.println(e.keyCode);
+				if (e.keyCode == SWT.ESC) {
+					MessageBox exitDialog = new MessageBox(parentEngine.getShell(),
+							SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL);
+					exitDialog.setMessage("выйти в главное меню?");
+					int answer = exitDialog.open();
+					if (answer == SWT.OK) {
+						if (parentEngine.netType==NetInteraction.SERVER)
+							parentEngine.server.shutdown();
+						else
+						{
+							parentEngine.client.disconnectFromServer();
+							parentEngine.client.disconnect();
+						}
+						mainTimer.stop();
+						exit();
+						glDraw.dispose();
+						parentEngine.mainMenu.open();
+					}
+				}
+
+				if (e.keyCode == BACK) {
+					control.movePad[0] = true;
+				}
+				if (e.keyCode == RIGHT) {
+					control.movePad[1] = true;
+				}
+				if (e.keyCode == FORWARD) {
+					control.movePad[2] = true;
+				}
+				if (e.keyCode == LEFT) {
+					control.movePad[3] = true;
+				}
+			}
+
+		});
+		openGLComposite.addListener(SWT.KeyUp, new Listener() {
+			public void handleEvent(Event e) {
+				for (int i = 0; i < 4; i++) {
+					control.movePad[i] = false;
 				}
 			}
 		});
-		canvas.addListener(SWT.MouseDown, new Listener(){
+		canvas.addListener(SWT.MouseDown, new Listener() {
 			public void handleEvent(Event arg0) {
-				control.mouseIsDown=true;
-			}			
-		});
-		canvas.addListener(SWT.MouseUp,new Listener(){
-			public void handleEvent(Event arg0) {
-				control.mouseIsDown=false;				
+				control.mouseIsDown = true;
 			}
-			
+		});
+		canvas.addListener(SWT.MouseUp, new Listener() {
+			public void handleEvent(Event arg0) {
+				control.mouseIsDown = false;
+			}
+
 		});
 	}
-	//“ј…ћ≈–
-	private void inTime(){
-		Camera cam=actor.getCamera();	
-		world.remove(actor);
+
+	private void inTime() {
+		world.clear();
 		actor.move(control.movePad, map);
-		world.add(actor);
-		glDraw.draw(world, cam );
-		if (control.mouseIsDown){
-			Bullet newBullet=actor.fire();
-			bullets.add(newBullet);
-			world.add(newBullet);
-		}
-		for (int i=0; i<bullets.size(); i++)
+		for (int i = 0; i < map.blocks.size(); i++)
+			world.add(Obj.parseObj(map.blocks.get(i), models));
+		if (online)
 		{
-			if (bullets.get(i).isDestoyed(map))
-			{
+			onlineInTime();
+		}
+		else {
+			world.add(Obj.parseObj(actor, models));
+		}
+		Camera cam = actor.getCamera();
+		for (int i = 0; i < players.size(); i++)
+		{
+			world.add(Obj.parseObj(players.get(i), models));
+		}
+		glDraw.draw(world, cam);
+		if (control.mouseIsDown) {
+			Bullet newBullet = actor.fire();
+			bullets.add(newBullet);
+			world.add(Obj.parseObj(newBullet, models));
+		}
+		for (int i = 0; i < bullets.size(); i++) {
+			if (bullets.get(i).isDestoyed(map)) {
 				world.remove(bullets.get(i));
 				bullets.remove(i);
-				
+
 			}
 		}
 	}
-	//√≈Ќ≈–ј÷»я  ј–“џ
-	private ArrayList<Obj> mapGen()
-	{
-		Random rand=new Random();
-		int x;
-		int y;
-		int width;
-		int height;
-		ArrayList<Obj> newMap=new ArrayList<Obj>();
-		
-		for (int blockIndex=0; blockIndex<Map.BLOCK_COUNT; blockIndex++)
-		{
-			if (blockIndex<4)//кра€ карты
-			{
-				x=Map.MAP_SIZE/2;
-				y=-x;
-				if (blockIndex==0) x=-x;
-				if (blockIndex==1) x=-x;
-				if (blockIndex==2) {x=-x; y=-y;};
-				width= (blockIndex+1)%2*Map.MAP_SIZE+Map.MAP_SECTOR_SIZE;
-				height= blockIndex%2*Map.MAP_SIZE+Map.MAP_SECTOR_SIZE;
-				//System.out.println("bx: "+(int)x+"   b.y: "+(int)y+"   b.w: "+width+"   b.h: "+height);
-			}
-			else
-			{
-			x=rand.nextInt(Map.MAP_SIZE/Map.MAP_SECTOR_SIZE)*Map.MAP_SECTOR_SIZE-Map.MAP_SIZE/2;
-			y=rand.nextInt(Map.MAP_SIZE/Map.MAP_SECTOR_SIZE)*Map.MAP_SECTOR_SIZE-Map.MAP_SIZE/2;
-			width=(rand.nextInt(Map.RAND_BLOCK_SIZE)+Map.MIN_BLOCK_SIZE)*Map.MAP_SECTOR_SIZE;
-			height=(rand.nextInt(Map.RAND_BLOCK_SIZE)+Map.MIN_BLOCK_SIZE)*Map.MAP_SECTOR_SIZE;
-		    
-			}
-			Obj objBuf=new Obj(x,y,width,height);
-			objBuf.color=new Color(null,170,100,100);
-		    Polygon plgBuf=new Polygon();
-		    plgBuf.v.add(new Point3d(x,y,0));
-		    plgBuf.v.add(new Point3d(x+width,y,0));
-		    plgBuf.v.add(new Point3d(x+width,y,Map.BLOCK_LEVEL));
-		    plgBuf.v.add(new Point3d(x,y,Map.BLOCK_LEVEL));
-		    plgBuf.norm=new Point3d(0,-1,0);
-		    objBuf.polygons.add(plgBuf);
-		    
-		    plgBuf=new Polygon();
-		    plgBuf.v.add(new Point3d(x,y+height,0));
-		    plgBuf.v.add(new Point3d(x+width,y+height,0));
-		    plgBuf.v.add(new Point3d(x+width,y+height,Map.BLOCK_LEVEL));
-		    plgBuf.v.add(new Point3d(x,y+height,Map.BLOCK_LEVEL));
-		    plgBuf.norm=new Point3d(0,-1,0);
-		    objBuf.polygons.add(plgBuf);
-		    
-		    plgBuf=new Polygon();
-		    plgBuf.v.add(new Point3d(x+width,y,0));
-		    plgBuf.v.add(new Point3d(x+width,y+height,0));
-		    plgBuf.v.add(new Point3d(x+width,y+height,Map.BLOCK_LEVEL));
-		    plgBuf.v.add(new Point3d(x+width,y,Map.BLOCK_LEVEL));
-		    plgBuf.norm=new Point3d(1,0,0);
-		    objBuf.polygons.add(plgBuf);
-		    
-		    plgBuf=new Polygon();
-		    plgBuf.v.add(new Point3d(x,y,0));
-		    plgBuf.v.add(new Point3d(x,y+height,0));
-		    plgBuf.v.add(new Point3d(x,y+height,Map.BLOCK_LEVEL));
-		    plgBuf.v.add(new Point3d(x,y,Map.BLOCK_LEVEL));
-		    plgBuf.norm=new Point3d(1,0,0);
-		    objBuf.polygons.add(plgBuf); 	    
-		    newMap.add(objBuf);
-		}
-		
-		Obj objBuf=new Obj();
-		Polygon plgBuf=new Polygon();
-		plgBuf.norm=new Point3d(0,0,-1);
-	    objBuf.polygons.add(plgBuf);
-	    objBuf.color=new Color(null,50,125,50);
-	    plgBuf.v.add(new Point3d(-500,-500,0));
-	    plgBuf.v.add(new Point3d(500,-500,0));
-	    plgBuf.v.add(new Point3d(500,500,0));
-	    plgBuf.v.add(new Point3d(-500,500,0));	    
-	    newMap.add(objBuf);
-	    
-		return newMap;		
+
+	private void onlineInTime() {
+		double timeBuf=System.currentTimeMillis();
+		parentEngine.client.sendMessage(NetInteraction.REFRESH_ME);
+		parentEngine.client.sendObject(actor.clone());
+		print("fps:"+(System.currentTimeMillis()-timeBuf),2);
 	}
-	//Ќќ¬јя »√–ј
-	public void newGame(){
+
+	public void newGame(boolean isOnline) {
 		open();
-	    map.blocks=mapGen();
-		players.clear();
-		bullets.clear();	
+		print("new game");
+		LoadModels();
+		online = isOnline;
+		bullets.clear();
+		actor = new Actor();
 		actor.create(map);
-		players.add(actor);
-		world.addAll(map.blocks);
-		canvas=glDraw.init(composite, players.get(0));
-		time=true;
+		// если онлайн сгенерить ботов
+		canvas = glDraw.init(openGLComposite);
 		setListeners();
-	    Runnable timer = new Runnable() {
-	        public void run() {
-	        	if (time){
-	        	inTime();	
-	        	composite.getDisplay().timerExec(40, this);
-	        	}
-	        }
-	      };
-	      composite.getDisplay().timerExec(0, timer);
-		
+		mainTimer = new Timer(parentEngine.getDisplay(), FPS, new Runnable() {
+			public void run() {
+				inTime();
+			}
+		});
+		mainTimer.start();
+	}
+
+	private void LoadModels() {
+		Model modelBuf = new Model();
+		modelBuf.color = new Color(null, 0, 0, 200);
+		modelBuf.loadModel("player");
+		models.put("player", modelBuf);
+		modelBuf = new Model();
+		modelBuf.color = new Color(null, 250, 250, 250);
+		modelBuf.loadModel("bullet");
+		models.put("bullet", modelBuf);
+		modelBuf = new Model();
+		modelBuf.color = new Color(null, 250, 200, 100);
+		modelBuf.loadModel("cube");
+		models.put("cube", modelBuf);
+		modelBuf = new Model();
+		modelBuf.color = new Color(null, 50, 125, 50);
+		modelBuf.loadModel("squere");
+		models.put("squere", modelBuf);
+	}
+
+	private void exit() {
+		openGLComposite.setEnabled(false);
+		openGLComposite.setVisible(false);
+	}
+
+	private void open() {
+		openGLComposite.setEnabled(true);
+		openGLComposite.setVisible(true);
+		openGLComposite.setFocus();
+	}
+
+	public void refreshPlayers(ArrayList<Player> newPlayers) {
+		players.clear();
+		players.addAll(newPlayers);
 	}
 }

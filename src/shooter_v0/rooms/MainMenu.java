@@ -60,7 +60,7 @@ public class MainMenu extends Menu{
 			public void handleEvent(Event arg0) {
 				composite.setEnabled(false);
 				composite.setVisible(false);
-				parentEngine.game.newGame();
+				parentEngine.game.newGame(false);
 			}			
 		});
 	}

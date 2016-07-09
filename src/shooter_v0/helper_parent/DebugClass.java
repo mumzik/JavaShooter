@@ -6,9 +6,9 @@ public abstract class DebugClass {
 	private final int MAX_THREADNAME_LENGTH = 25;
 	protected int DEBUG_LEVEL=1;
 
-	public synchronized void print(String text, Object sender, int debugPriority) {
+	public synchronized void print(String text, int debugPriority) {
 		if (debugPriority<=DEBUG_LEVEL) {
-		String className = sender.getClass().getName();
+		String className = this.getClass().getName();
 		className = className.substring(className.lastIndexOf(".") + 1, className.length());
 
 		System.out.print("   thread: " + Thread.currentThread().getName());
@@ -19,6 +19,9 @@ public abstract class DebugClass {
 			System.out.print("-");
 		System.out.println("  " + text);
 		}
+	}
+	public synchronized void print(String text) {
+		print(text,0);
 	}
 
 }

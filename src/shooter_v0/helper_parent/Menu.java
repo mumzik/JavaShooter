@@ -17,9 +17,4 @@ public abstract class Menu extends Room {
 	protected static final int COLUMN_WIDHT = 200;
 	protected static final int BUTTONS_HEIGHT = 50;
 	protected static final Color MENU_COLOR = new Color(null,100,100,100);
-	public void exit()
-	{
-		composite.setVisible(false);
-		composite.setEnabled(false);
-	}
 	}

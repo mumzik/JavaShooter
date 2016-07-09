@@ -14,13 +14,15 @@ import com.jogamp.opengl.GLDrawableFactory;
 import com.jogamp.opengl.GLProfile;
 import com.jogamp.opengl.glu.GLU;
 
+import shooter_v0.helper_parent.DebugClass;
 import shooter_v0.objects.Camera;
 import shooter_v0.objects.Model;
+import shooter_v0.objects.Obj;
 import shooter_v0.objects.Player;
 import shooter_v0.objects.Point3d;
 import shooter_v0.objects.Polygon;
 
-public class GLDraw {
+public class GLDraw extends DebugClass {
 	
 	static final private float VIEW_ANGLE_KOEF=90;
 	static final private float FAR_BORDER=2000;
@@ -33,7 +35,7 @@ public class GLDraw {
 		glcanvas.dispose();
 	}
 	
-	GLCanvas init(Composite composite, Player cam)
+	GLCanvas init(Composite composite)
 	{
 		int width=composite.getClientArea().width;
 		int height=composite.getClientArea().height;
@@ -67,21 +69,27 @@ public class GLDraw {
 		
 	}
     
-	void drawModel(Model model){
+	void drawModel(Obj obj){
+		print(obj+"pos:"+obj.x+" "+obj.y+" "+obj.z,5);
 		gl2.glPushMatrix();
-		FloatBuffer color=FloatBuffer.wrap(new float[] { (float) (model.color.getRed()/255.0),  (float) (model.color.getGreen()/255.0), (float) (model.color.getBlue()/255.0), 0f}); 	
+		FloatBuffer color=FloatBuffer.wrap(new float[] { (float) (obj.model.color.getRed()/255.0),  (float) (obj.model.color.getGreen()/255.0), (float) (obj.model.color.getBlue()/255.0), 0f}); 	
 		gl2.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, color); 
 		gl2.glLightfv(GL2.GL_LIGHT1, GL2.GL_DIFFUSE, color);
-		gl2.glTranslated(model.pos.x, model.pos.y, model.pos.z);		
-		gl2.glRotated(-model.getOrientation(), 0, 0, 1);
+		gl2.glTranslated(obj.x, obj.y, obj.z);
+		if(obj.scaleX!=0)
+		{
+			print("scale x:"+obj.scaleX+" y:"+obj.scaleY+" z:"+obj.scaleZ,5);
+			gl2.glScaled(obj.scaleX, obj.scaleY, obj.scaleZ);
+		}
+		gl2.glRotated(-obj.orientation, 0, 0, 1);
     	
 		
 		int polygonIndex=0;
 		Polygon plgBuf;
 		Point3d pointBuf;
-        while (polygonIndex<model.polygons.size())
+        while (polygonIndex<obj.model.polygons.size())
         {
-        	plgBuf=model.polygons.get(polygonIndex);
+        	plgBuf=obj.model.polygons.get(polygonIndex);
         	int pointIndex=0;
         	gl2.glBegin(GL2.GL_POLYGON);
         	gl2.glNormal3f((float)plgBuf.norm.x,(float)plgBuf.norm.y,(float)plgBuf.norm.z);
@@ -92,17 +100,18 @@ public class GLDraw {
         	}
         	gl2.glEnd();
         	polygonIndex++;
-        }		
+        }
         gl2.glPopMatrix();
 	}
 	
-    void draw(ArrayList<Model> world, Camera cam)
+    void draw(ArrayList<Obj> world, Camera cam)
     {
-		//System.out.println("IN DRAW   "+world.size());
+    	//System.out.println("IN DRAW   "+world.size());
     	gl2.glClear(GL2.GL_COLOR_BUFFER_BIT);
         gl2.glClear(GL2.GL_DEPTH_BUFFER_BIT);
         gl2.glLoadIdentity();    
     	gl2.glRotated(-90, 1, 0, 0);
+    	//print("camer orientation"+cam.orientation);
     	gl2.glRotated( cam.orientation, 0, 0, 1);
         gl2.glTranslated(-cam.x, -cam.y, -cam.z);
         float[] lightPos0 = { 150,100,-200,1 };        // light position
@@ -116,7 +125,6 @@ public class GLDraw {
         	drawModel(world.get(modelIndex));
         	modelIndex++;
         }
- 
         glcanvas.swapBuffers();
     }
 

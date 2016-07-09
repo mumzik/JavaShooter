@@ -1,6 +1,8 @@
 package shooter_v0.objects;
 
-public class Point2d {
+import java.io.Serializable;
+
+public class Point2d implements Serializable{
 	public double x;
 	public double y;
 	public Point2d(double x, double y){

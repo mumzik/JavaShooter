@@ -6,11 +6,12 @@ import org.eclipse.swt.widgets.Shell;
 
 import shooter_v0.Engine;
 
-abstract public class Room {
+abstract public class Room extends DebugClass{
 	protected Shell shell;
 	protected Composite composite;
 	protected Engine parentEngine;
 	public String name="default";
+	
 	
 	public Room(Engine parentEngine)
 	{
@@ -26,5 +27,11 @@ abstract public class Room {
 		composite.setEnabled(true);
 		composite.setVisible(true);
 		composite.setFocus();
+	}
+	
+	public void exit()
+	{
+		composite.setVisible(false);
+		composite.setEnabled(false);
 	}
 }
