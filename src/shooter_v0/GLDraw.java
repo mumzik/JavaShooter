@@ -30,9 +30,15 @@ public class GLDraw extends DebugClass {
 	
 	static private GL2 gl2;
 	static private GLCanvas glcanvas;
+	private Engine parentEngine;
 	void dispose()
 	{
 		glcanvas.dispose();
+	}
+
+	public	GLDraw(Engine parentEngine)
+	{
+		this.parentEngine=parentEngine;
 	}
 	
 	GLCanvas init(Composite composite)
@@ -70,7 +76,6 @@ public class GLDraw extends DebugClass {
 	}
     
 	void drawModel(Obj obj){
-		print(obj+"pos:"+obj.x+" "+obj.y+" "+obj.z,5);
 		gl2.glPushMatrix();
 		FloatBuffer color=FloatBuffer.wrap(new float[] { (float) (obj.model.color.getRed()/255.0),  (float) (obj.model.color.getGreen()/255.0), (float) (obj.model.color.getBlue()/255.0), 0f}); 	
 		gl2.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, color); 
@@ -78,7 +83,6 @@ public class GLDraw extends DebugClass {
 		gl2.glTranslated(obj.x, obj.y, obj.z);
 		if(obj.scaleX!=0)
 		{
-			print("scale x:"+obj.scaleX+" y:"+obj.scaleY+" z:"+obj.scaleZ,5);
 			gl2.glScaled(obj.scaleX, obj.scaleY, obj.scaleZ);
 		}
 		gl2.glRotated(-obj.orientation, 0, 0, 1);
@@ -111,7 +115,6 @@ public class GLDraw extends DebugClass {
         gl2.glClear(GL2.GL_DEPTH_BUFFER_BIT);
         gl2.glLoadIdentity();    
     	gl2.glRotated(-90, 1, 0, 0);
-    	//print("camer orientation"+cam.orientation);
     	gl2.glRotated( cam.orientation, 0, 0, 1);
         gl2.glTranslated(-cam.x, -cam.y, -cam.z);
         float[] lightPos0 = { 150,100,-200,1 };        // light position
@@ -122,7 +125,9 @@ public class GLDraw extends DebugClass {
         int modelIndex=0;
         while (modelIndex<world.size())
         {
-        	drawModel(world.get(modelIndex));
+        	Obj buf=world.get(modelIndex);
+        	buf=Obj.parseObj(buf, parentEngine.game.models);
+        	drawModel(buf);
         	modelIndex++;
         }
         glcanvas.swapBuffers();

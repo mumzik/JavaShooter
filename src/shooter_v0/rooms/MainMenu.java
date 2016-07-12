@@ -1,6 +1,7 @@
 package shooter_v0.rooms;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Event;
@@ -10,6 +11,7 @@ import shooter_v0.Engine;
 import shooter_v0.helper_parent.Menu;
 
 public class MainMenu extends Menu{
+	private static final int TOP = 100;
 	private Engine parentEngine;
 	private Button onlineGameButton;
 	private Button offlineGameButton;
@@ -18,23 +20,25 @@ public class MainMenu extends Menu{
 	private Menu self=this;
 	
 	public MainMenu(Engine parentEngine)
-	{
+	{	
 		super(parentEngine);
+		Image background=new Image(null,"textures/MainMenuBackgroung.jpg");		
+		composite.setBackgroundImage(background);
 		name="главное меню";
 		this.parentEngine=parentEngine;
 		int leftBorder=composite.getClientArea().width/2-COLUMN_WIDHT/2;
 		onlineGameButton=new Button(composite, SWT.PUSH);
 		onlineGameButton.setText("игра по сети");
-		onlineGameButton.setBounds(leftBorder, 0, COLUMN_WIDHT, BUTTONS_HEIGHT);
+		onlineGameButton.setBounds(leftBorder, TOP, COLUMN_WIDHT, BUTTONS_HEIGHT);
 		offlineGameButton=new Button(composite, SWT.PUSH);
 		offlineGameButton.setText("одиночная игра");
-		offlineGameButton.setBounds(leftBorder, BUTTONS_HEIGHT, COLUMN_WIDHT, BUTTONS_HEIGHT);
+		offlineGameButton.setBounds(leftBorder, BUTTONS_HEIGHT+TOP, COLUMN_WIDHT, BUTTONS_HEIGHT);
 		settingsButton=new Button(composite, SWT.PUSH);
 		settingsButton.setText("настройки");
-		settingsButton.setBounds(leftBorder, BUTTONS_HEIGHT*2, COLUMN_WIDHT, BUTTONS_HEIGHT);
+		settingsButton.setBounds(leftBorder, BUTTONS_HEIGHT*2+TOP, COLUMN_WIDHT, BUTTONS_HEIGHT);
 		exitButton=new Button(composite, SWT.PUSH);
 		exitButton.setText("выход");
-		exitButton.setBounds(leftBorder, BUTTONS_HEIGHT*3, COLUMN_WIDHT, BUTTONS_HEIGHT);
+		exitButton.setBounds(leftBorder, BUTTONS_HEIGHT*3+TOP, COLUMN_WIDHT, BUTTONS_HEIGHT);
 		setListeners();
 	}
 

@@ -1,18 +1,15 @@
 package shooter_v0.objects;
 
-public class Camera extends Point3d{
+public class Camera extends Obj{
+	public static final double SIZE = 1.5;
 	public double orientation;
 	public Camera(double x, double y, double z, double orientation)
 	{
-		this.x=x;
-		this.y=y;
-		this.z=z;
+		super(x,y,z,SIZE);
 		this.orientation=orientation;
 	}
-	public Camera(Point3d bufPoint, double orientation) {
-		this.x=bufPoint.x;
-		this.y=bufPoint.y;
-		this.z=bufPoint.z;
-		this.orientation=orientation;
+	public Camera() {
+		this.type=SPHERE;
+		this.r=SIZE;
 	}
 }

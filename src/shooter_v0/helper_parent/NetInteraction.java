@@ -10,6 +10,7 @@ import java.io.Serializable;
 import java.net.Socket;
 
 import shooter_v0.Engine;
+import shooter_v0.objects.Obj;
 
 public abstract class NetInteraction extends DebugClass {
 	public static final String DISCONNECT_COMMAND = "DISCONNECT";
@@ -20,6 +21,8 @@ public abstract class NetInteraction extends DebugClass {
 	public static final String PLAYERS_REFRESH="get players states";	
 	public static final String REFRESH_ME="refresh this player";
 	public static final String START_GAME = "game start";
+	public static final String GAME_ALREADY_STARTED="game already started";
+	public static final String ADD_BULLET = "add new bullet";
 	protected Socket socket;
 	protected Socket objSocket;
 	protected Engine parentEngine;
@@ -29,8 +32,8 @@ public abstract class NetInteraction extends DebugClass {
 	protected BufferedReader reader;
 	protected ObjectInputStream objectReader;
 	protected ObjectOutputStream objectWriter;
+	protected Thread waitObjectThread;
 	protected void listen() {
-		print("listening text",3);
 		Runnable waitTextMessage = new Runnable() {
 			public void run() {
 				while (!Thread.interrupted()) {
@@ -38,7 +41,6 @@ public abstract class NetInteraction extends DebugClass {
 						String message = reader.readLine();
 						if (!Thread.currentThread().isInterrupted())
 						{
-							print("got message: " + message,3);
 							gotMessage(message);
 						}
 					} catch (IOException e) {
@@ -54,17 +56,59 @@ public abstract class NetInteraction extends DebugClass {
 		waitTextMessages.start();
 	}
 
+	
+	protected void listenObj() {
+		print("listening object");
+		Runnable waitObject = new Runnable() {
+			public void run() {
+				while (!Thread.interrupted()) {
+					try {
+						System.out.println(this.getClass());
+						Object obj = objectReader.readObject();
+						if (!Thread.currentThread().isInterrupted())
+						{
+							gotObject(obj);
+						}
+					} catch (IOException e) {
+						if (!Thread.currentThread().isInterrupted()) {
+							e.printStackTrace();
+							showInfo("ошибка чтения полученного объекта");
+						}
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+						showInfo("не найден класс полученного объекта");
+					}
+				}
+			}
+		};
+		waitObjectThread = new Thread(waitObject, "waiting messages");
+		waitObjectThread.start();
+	}
 
 	protected abstract void gotMessage(String message);
+	protected abstract void gotObject(Object obj);
 	public void disconnect() {
-		print("disconnecting, port on server: " + socket.getPort(),3);
+		print("disconnect");
 		parentEngine.setNetType(OFFLINE);
 		waitTextMessages.interrupt();
+		waitObjectThread.interrupt();
+		try {
+			objectReader.close();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+			showInfo("ошибка закрытия потока принимаемых объектов");
+		}
 		try {
 			reader.close();
 		} catch (IOException e1) {
 			e1.printStackTrace();
 			showInfo("ошибка закрытия потока входящих сообщений");
+		}
+		try {
+			objectWriter.close();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+			showInfo("ошибка закрытия потока отправляемых объектов");
 		}
 		writer.close();
 		try {
@@ -85,7 +129,6 @@ public abstract class NetInteraction extends DebugClass {
 	}
 	public void sendMessage(String text)
 	{
-		print("send message "+text,3);
 		writer.println(text);
 	}
 	public void setType(String type) {
@@ -94,7 +137,6 @@ public abstract class NetInteraction extends DebugClass {
 	}
 	public void initTextStreams()
 	{
-		print("init text streams",4);
 		try {
 			writer=new PrintWriter(socket.getOutputStream(), true);
 		} catch (IOException e) {
@@ -110,7 +152,6 @@ public abstract class NetInteraction extends DebugClass {
 	}
 	public void initObjStreams()
 	{
-		print("init object streams",4);
 		try {
 			objectWriter=new ObjectOutputStream(objSocket.getOutputStream());
 		} catch (IOException e) {
@@ -136,13 +177,13 @@ public abstract class NetInteraction extends DebugClass {
 	}
 	public void sendObject(Serializable object)
 	{
-		print("send object "+object.getClass(),3);
 		try {
 			objectWriter.reset();
 			objectWriter.writeObject(object);
 			objectWriter.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
+			System.out.println(object.getClass());
 			showInfo("ошибка отправки объекта");
 		}
 	}

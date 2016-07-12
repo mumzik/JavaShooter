@@ -18,7 +18,7 @@ import shooter_v0.objects.Model;
 import shooter_v0.objects.Player;
 
 public class Server extends NetInteraction {
-	public static final int DEFAULT_PORT = 8095;
+	public static final int DEFAULT_PORT = 8098;
 	private static final int SECONDARY_CONNECTION_ACCEPT_TIMEOUT = 3000;
 	public ArrayList<ConnectedClient> connectedClients = new ArrayList<ConnectedClient>();
 	private Engine parentEngine;
@@ -30,7 +30,6 @@ public class Server extends NetInteraction {
 	public Server(Engine parentEngine) {
 		this.parentEngine = parentEngine;
 		setType(SERVER);
-		DEBUG_LEVEL=0;
 	}
 
 	private InetAddress getLocalIp() {
@@ -46,7 +45,7 @@ public class Server extends NetInteraction {
 	}
 
 	public void run() {
-		print("starting", 1);
+		print("starting");
 		localIp = getLocalIp();
 		waitClients();
 	}
@@ -55,15 +54,27 @@ public class Server extends NetInteraction {
 		Runnable waiting = new Runnable() {
 			public void run() {
 				try {
-					print("open server socket", 4);
 					mainServerSocket = new ServerSocket(DEFAULT_PORT);
 					String localIpStr = localIp.toString();
 					localIpStr = localIpStr.substring(1, localIpStr.length());
 					parentEngine.getClient().connect(localIpStr);
 					while (!Thread.currentThread().isInterrupted()) {
-						print("waiting new client...", 3);
 						Socket socket = mainServerSocket.accept();
-						connectNewClient(socket);
+						if (!parentEngine.game.online)
+							connectNewClient(socket);
+						else
+						{
+							try
+							{
+							PrintWriter newClientWriter = new PrintWriter(socket.getOutputStream());
+							newClientWriter.println(GAME_ALREADY_STARTED);
+							newClientWriter.flush();
+							}
+							catch(IOException e){
+								e.printStackTrace();
+								showInfo("ошибка при информировании клиента");
+							}
+						}
 					}
 				} catch (BindException e) {
 					parentEngine.getDisplay().syncExec(new Runnable() {
@@ -81,7 +92,6 @@ public class Server extends NetInteraction {
 						showInfo("ошибка запуска сервера на порту:" + DEFAULT_PORT + " " + e.getMessage());
 					}
 				} finally {
-					print("close main server Socket", 4);
 					if (mainServerSocket != null && !mainServerSocket.isClosed())
 						try {
 							mainServerSocket.close();
@@ -100,13 +110,12 @@ public class Server extends NetInteraction {
 
 	private void connectNewClient(Socket socket) {
 		if (!waitNewClientsThread.isInterrupted())
-			print("new client connected", 2);
+		{
 		Thread clientAddThread = new Thread(new Runnable() {
 			public void run() {
 				ServerSocket waitForTextSocket = null;
 				ServerSocket waitForObjectSocket = null;
 				try {
-					print("finding port", 5);
 					waitForTextSocket = new ServerSocket(0);
 					waitForObjectSocket = new ServerSocket(0);
 					sendFreePortToClient(socket, waitForTextSocket, waitForObjectSocket);
@@ -119,15 +128,13 @@ public class Server extends NetInteraction {
 			}
 		}, "adding new client");
 		clientAddThread.start();
+		}
 
 	}
 
 	private void sendFreePortToClient(Socket socket, ServerSocket textServerSocket, ServerSocket objectServerSocket) {
 		try {
 			PrintWriter newClientWriter = new PrintWriter(socket.getOutputStream());
-			print("send new port to client", 4);
-			print("new client text port is: " + textServerSocket.getLocalPort() + " object: "
-					+ objectServerSocket.getLocalPort(), 4);
 			newClientWriter.println(textServerSocket.getLocalPort());
 			newClientWriter.flush();
 			newClientWriter.println(objectServerSocket.getLocalPort());
@@ -143,8 +150,6 @@ public class Server extends NetInteraction {
 				showInfo("ошибка при закрытии серверных сокетов вторичного подключения");
 			}
 		} finally {
-			if (!socket.isClosed())
-				print("close temorary socket on port: " + textServerSocket.getLocalPort(), 4);
 			try {
 				socket.close();
 			} catch (IOException e) {
@@ -156,14 +161,14 @@ public class Server extends NetInteraction {
 	}
 
 	private void waitSecondaryConnection(ServerSocket textServerSocket, ServerSocket objectServerSocket ) {
-		print("waiting secondary connecting from client", 4);
 		try {
 			textServerSocket.setSoTimeout(SECONDARY_CONNECTION_ACCEPT_TIMEOUT);
 			objectServerSocket.setSoTimeout(SECONDARY_CONNECTION_ACCEPT_TIMEOUT);
 			Socket socket=textServerSocket.accept();
 			Socket objSocket=objectServerSocket.accept();
 			connectedClients.add(new ConnectedClient(parentEngine,socket,objSocket));
-			print("client added", 2);
+			System.out.println("clients count:"+connectedClients.size());
+			print("client added");
 		} catch (SocketTimeoutException e) {
 			showInfo("истекло время ожидания вторичного подключения клиента");
 		} catch (IOException e) {
@@ -180,10 +185,11 @@ public class Server extends NetInteraction {
 		}
 	}
 
+	
+	
 	public void shutdown() {
-		print("shutdown", 1);
+		print("shutdown");
 		waitNewClientsThread.interrupt();
-		print("close main server Socket", 4);
 		if (mainServerSocket != null && !mainServerSocket.isClosed())
 			try {
 				mainServerSocket.close();
@@ -193,9 +199,9 @@ public class Server extends NetInteraction {
 
 			}
 		for (int i = 0; i < this.connectedClients.size(); i++) {
-			print("disconnecting client with port: " + this.connectedClients.get(i).getPort(), 3);
 			this.connectedClients.get(i).sendMessage(NetInteraction.DISCONNECT_COMMAND);
 			this.connectedClients.get(i).disconnect();
+			this.connectedClients.remove(i);
 		}
 	}
 
@@ -210,8 +216,13 @@ public class Server extends NetInteraction {
 
 	public void sendObjectToAll(Serializable object) {
 		for (int i=0; i<connectedClients.size(); i++)
+		{
 			connectedClients.get(i).sendObject(object);
+		}
 		
+	}
+
+	protected void gotObject(Object obj) {
 	}
 
 }

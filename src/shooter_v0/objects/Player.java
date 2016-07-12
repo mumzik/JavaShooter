@@ -2,21 +2,24 @@ package shooter_v0.objects;
 
 import java.awt.Color;
 import java.io.Serializable;
+import java.util.ArrayList;
 
 import shooter_v0.Engine;
+import shooter_v0.Map;
+import shooter_v0.World;
 
 
 
 public class Player extends Obj implements Serializable,Cloneable{
 	public static final double PLAYER_SIZE=2.5;
-	private static final double PLAYER_CAMERA_HEIGHT = 8;
-	private static final double CAMERA_DIST = 10;
 
 	public int hp;
 	public String login;
 	
 	public Player()
-	{
+	{	
+		type=SPHERE;
+		r=PLAYER_SIZE;
 		modelName="player";
 	}
 	public String getName()
@@ -27,12 +30,5 @@ public class Player extends Obj implements Serializable,Cloneable{
 	{
 		login=newName;
 	};
-	public Camera getCamera() {	
-		Point3d bufPoint=new Point3d();
-		bufPoint.x=x-CAMERA_DIST*Math.sin(orientation/180*Math.PI);
-		bufPoint.y=y-CAMERA_DIST*Math.cos(orientation/180*Math.PI);
-		bufPoint.z=PLAYER_CAMERA_HEIGHT;
-		return new Camera(bufPoint,orientation);
-	}
 	
 }

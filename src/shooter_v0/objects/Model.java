@@ -20,7 +20,6 @@ public class Model implements Serializable{
 	public void loadModel(String name) {
 		String path="models/"+name+".obj";
 		this.name=name;
-		System.out.println("model " + name + " loading");
 		ArrayList<Point3d> normals = new ArrayList<Point3d>();
 		ArrayList<Point3d> vertexes = new ArrayList<Point3d>();
 		try {

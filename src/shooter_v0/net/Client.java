@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import shooter_v0.Engine;
 import shooter_v0.Map;
 import shooter_v0.helper_parent.NetInteraction;
+import shooter_v0.objects.Actor;
+import shooter_v0.objects.Bullet;
 import shooter_v0.objects.Model;
 import shooter_v0.objects.Player;
 
@@ -18,46 +20,33 @@ public class Client extends NetInteraction {
 	private static final int CONNECT_TIMEOUT = 3000;
 	private String serverIp;
 	private Runnable waitPlayersState;
+	private Runnable waitBulletState;
 
 	public Client(Engine parentEngine) {
 		this.parentEngine = parentEngine;
-		DEBUG_LEVEL=0;
-		localNetType="client";
-		waitPlayersState=new Thread(new Runnable(){
-			public void run() {
-				ArrayList<Player> playersBuf;
-				try {
-					playersBuf = (ArrayList<Player>) objectReader.readObject();
-					parentEngine.game.refreshPlayers(playersBuf);
-				} catch (ClassNotFoundException e) {
-					e.printStackTrace();
-					showInfo("неверный тип объекта");
-				} catch (IOException e) {
-					e.printStackTrace();
-					showInfo("ошибка чтения объекта");
-				}
-			}
-			
-		},"wait object thread");
+		localNetType = "client";		
 	}
 
 	public void connect(String serverIp) {
-		print("starting",1);
+		print("starting");
 		this.serverIp = serverIp;
 		Thread waitingPort = new Thread(new Runnable() {
 			public void run() {
 				try {
 					socket = new Socket();
-					print("connecting to server(default port)",3);
 					socket.connect(new InetSocketAddress(serverIp, Server.DEFAULT_PORT), CONNECT_TIMEOUT);
 					initTextStreams();
-					int port=gotPort();
-					int objPort=gotPort();
-					socket=connectOnNewPort(port);
-					objSocket=connectOnNewPort(objPort);
-					initTextStreams();
-					initObjStreams();
-					listen();
+					int port = gotPort();
+					if (port != 0) {
+						int objPort = gotPort();
+						socket = connectOnNewPort(port);
+						objSocket = connectOnNewPort(objPort);
+						initTextStreams();
+						writer.println(parentEngine.login);
+						initObjStreams();
+						listen();
+						listenObj();
+					}
 				} catch (SocketTimeoutException e) {
 					showInfo("истекло время подключения к серверу");
 				} catch (IOException e) {
@@ -78,11 +67,20 @@ public class Client extends NetInteraction {
 			showInfo("ошибка установки таймаута приема выделенного порта");
 		}
 		try {
-			print("waiting port",4);
-			String message=reader.readLine();
-			print(message,5);
-			int port=Integer.parseInt(message);
-			return port;
+			String message = reader.readLine();
+			if (message.equals(GAME_ALREADY_STARTED)) {
+				parentEngine.getDisplay().syncExec(new Runnable() {
+					public void run() {
+						parentEngine.joinGameMenu.exit();
+						parentEngine.selectServerMenu.open();
+					}
+				});
+				showInfo("нельзя подключиться к уже начавшейся игре");
+				return 0;
+			} else {
+				int port = Integer.parseInt(message);
+				return port;
+			}
 		} catch (NumberFormatException e) {
 			showInfo("неверный формат полученного порта");
 			e.printStackTrace();
@@ -98,7 +96,6 @@ public class Client extends NetInteraction {
 	private Socket connectOnNewPort(int port) {
 		// подключение к выделенному порту
 		try {
-			print("connecting to server on ports:" + port,3);
 			Socket socket = new Socket();
 			socket.connect(new InetSocketAddress(serverIp, port), CONNECT_TIMEOUT);
 			return socket;
@@ -112,10 +109,9 @@ public class Client extends NetInteraction {
 	}
 
 	protected void gotMessage(String message) {
-		if (message.equals(DISCONNECT_COMMAND))
-		{	
+		if (message.equals(DISCONNECT_COMMAND)) {
 			if (parentEngine.getNetType().equals(CLIENT))
-			showInfo("сервер был выключен");
+				showInfo("сервер был выключен");
 			writer.close();
 			try {
 				reader.close();
@@ -124,21 +120,12 @@ public class Client extends NetInteraction {
 				showInfo("ошибка закрытия потока входящих сообщений");
 			}
 			disconnect();
-			if (parentEngine.game.mainTimer!=null)
+			if (parentEngine.game.mainTimer != null)
 				parentEngine.game.mainTimer.stop();
 
 		}
-		if (message.equals(START_GAME))
-		{
-			try {
-				parentEngine.game.map=(Map) objectReader.readObject();
-			} catch (ClassNotFoundException e) {
-				showInfo("неверный формат полученной карты");
-				e.printStackTrace();
-			} catch (IOException e) {
-				showInfo("ошибка загрузки карты");
-				e.printStackTrace();
-			}
+		if (message.equals(START_GAME)) {
+			parentEngine.game.online=true;
 			parentEngine.getDisplay().syncExec(new Runnable() {
 				public void run() {
 					parentEngine.createGameMenu.exit();
@@ -146,15 +133,37 @@ public class Client extends NetInteraction {
 				}
 			});
 		}
-		if (message.equals(PLAYERS_REFRESH))
-		{
-			Thread waitPlayersStateThread=new Thread(waitPlayersState,"waiting players state");
-			waitPlayersStateThread.run();
-		}
 	}
 
 	public void disconnectFromServer() {
-		writer.println(DISCONNECT_QUERY);		
+		writer.println(DISCONNECT_QUERY);
 	}
+
+	@Override
+	protected void gotObject(Object obj) {
+		if (obj.getClass() == ArrayList.class)
+		{
+			ArrayList<?> buf=(ArrayList<?>) obj;
+			if ((buf.get(0).getClass()==Player.class)|(buf.get(0).getClass()==Actor.class))
+			{
+				parentEngine.game.refreshPlayers((ArrayList<Player>) obj);
+			return;
+			}
+			showInfo("полученный ArrayList не опознан."+buf.get(0).getClass());
+			return;
+		}
+		if (obj.getClass()==Map.class)
+		{
+			parentEngine.game.map=(Map) obj;
+			return;
+		}
+		if (obj.getClass() == Bullet.class)
+		{
+			parentEngine.game.bullets.add((Bullet) obj);	
+			return;
+		}
+		showInfo("полученный объект не опознан."+obj.getClass());		
+	}
+
 
 }

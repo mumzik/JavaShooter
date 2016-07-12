@@ -6,67 +6,91 @@ import java.util.ArrayList;
 
 import shooter_v0.Engine;
 import shooter_v0.helper_parent.NetInteraction;
+import shooter_v0.objects.Actor;
+import shooter_v0.objects.Bullet;
 import shooter_v0.objects.Model;
 import shooter_v0.objects.Player;
 
 public class ConnectedClient extends NetInteraction {
 	Player playerBuf;
+	public String login;
 
 	public ConnectedClient(Engine parentEngine, Socket socket, Socket objSocket) {
 		localNetType = "server";
 		this.parentEngine = parentEngine;
 		this.socket = socket;
 		this.objSocket = objSocket;
-		
 		initTextStreams();
 		initObjStreams();
+		try {
+			login = reader.readLine();
+			parentEngine.getDisplay().syncExec(new Runnable() {
+				public void run() {
+					parentEngine.createGameMenu.addClients(login);
+				}
+			});
+		} catch (IOException e) {
+			e.printStackTrace();
+			showInfo("ошибка получения логина игрока");
+		}
 		listen();
-		setType("server");
-		DEBUG_LEVEL=0;
+		listenObj();
+		setType(SERVER);
+		print("socket after add"+socket.isClosed());
 	}
 
 	protected void gotMessage(String message) {
 		if (message.equals(DISCONNECT_QUERY)) {
-			waitTextMessages.interrupt();
-			try {
-				reader.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-				showInfo("ошибка при закрытии потока входящих сообщений");
+			if (parentEngine.game.online) {
+				if (!parentEngine.server.currentPlayersState.remove(playerBuf))
+					showInfo("ошибка удаления игрока");
+			} else {
+				parentEngine.getDisplay().syncExec(new Runnable() {
+					public void run() {
+						parentEngine.createGameMenu.removeClient(login);
+					}
+				});
 			}
-			writer.close();
-			try {
-				socket.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-				showInfo("ошибка при закрытии сокета");
-			}
+			disconnect();
 			parentEngine.server.connectedClients.remove(this);
-		}
-		if (message.equals(REFRESH_ME)) {
-			try {
-				if (playerBuf != null) {
-					if (!parentEngine.server.currentPlayersState.remove(playerBuf))
-						showInfo("ошибка обновления игрока");
-				}
-				playerBuf = (Player) objectReader.readObject();
-				parentEngine.server.currentPlayersState.add(playerBuf);
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-				showInfo("неверный тип объекта");
-			} catch (IOException e) {
-				e.printStackTrace();
-				showInfo("ошибка чтения объекта");
-			}
-			sendMessage(PLAYERS_REFRESH);
-			ArrayList<Player> playersBuf = (ArrayList<Player>) parentEngine.server.currentPlayersState.clone();
-			sendObject(playersBuf);
-			print("players has sended", 5);
 		}
 	}
 
 	public int getPort() {
 		return socket.getLocalPort();
+	}
+
+	@Override
+	protected void gotObject(Object obj) {
+		if (obj.getClass() == Actor.class)
+		{
+			refreshPlayers((Player) obj);
+			return;
+		}
+		if (obj.getClass() == Bullet.class)
+		{
+			refreshBullets((Bullet) obj);
+			return;
+		}
+		showInfo("полученный объект не опознан");
+	}
+
+	private void refreshBullets(Bullet obj) {
+			parentEngine.server.sendObjectToAll(obj);
+	}
+
+	private void refreshPlayers(Player obj) {
+		if ((playerBuf != null) && (!parentEngine.server.currentPlayersState.remove(playerBuf)))
+			showInfo("ошибка обновления игрока");
+		else {
+			playerBuf = obj;
+			playerBuf.modelName = "actor";
+			parentEngine.server.currentPlayersState.add(playerBuf);
+			@SuppressWarnings("unchecked")
+			ArrayList<Player> playersBuf = (ArrayList<Player>) parentEngine.server.currentPlayersState.clone();
+			sendObject(playersBuf);
+			playerBuf.modelName = "player";
+		}
 	}
 
 }

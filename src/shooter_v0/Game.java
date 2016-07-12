@@ -44,7 +44,7 @@ public class Game extends DebugClass {
 	private static final int LEFT = 97;
 	private static final int FPS = 50;
 	public Map map = new Map();
-	public ArrayList<Obj> world;
+	public World world;
 	private Actor actor;
 	public ArrayList<Player> players = new ArrayList<Player>();
 	public ArrayList<Bullet> bullets;
@@ -54,19 +54,20 @@ public class Game extends DebugClass {
 	private GLCanvas canvas;
 	public Timer mainTimer;
 	public Control control = new Control();
-	private boolean online;
+	public boolean online;
 	public HashMap<String, Model> models = new HashMap<String, Model>();
 
 	public Game(Engine parentEngine) {
 		this.parentEngine = parentEngine;
-		glDraw = new GLDraw();
+		glDraw = new GLDraw(parentEngine);
+		online=false;
 		openGLComposite = new Composite(parentEngine.getShell(), SWT.NONE);
 		openGLComposite.setSize(parentEngine.getShell().getClientArea().width,
 				parentEngine.getShell().getClientArea().height);
 		openGLComposite.setEnabled(false);
 		openGLComposite.setVisible(false);
 		bullets = new ArrayList<Bullet>();
-		world = new ArrayList<Obj>();
+		world = new World();
 	}
 
 	private void setListeners() {
@@ -88,19 +89,8 @@ public class Game extends DebugClass {
 							SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL);
 					exitDialog.setMessage("выйти в главное меню?");
 					int answer = exitDialog.open();
-					if (answer == SWT.OK) {
-						if (parentEngine.netType==NetInteraction.SERVER)
-							parentEngine.server.shutdown();
-						else
-						{
-							parentEngine.client.disconnectFromServer();
-							parentEngine.client.disconnect();
-						}
-						mainTimer.stop();
-						exit();
-						glDraw.dispose();
-						parentEngine.mainMenu.open();
-					}
+					if (answer == SWT.OK) 
+						exitToMainMenu();
 				}
 
 				if (e.keyCode == BACK) {
@@ -138,54 +128,97 @@ public class Game extends DebugClass {
 		});
 	}
 
+	private void exitToMainMenu() {
+
+		if (online){
+			if (parentEngine.netType==NetInteraction.SERVER)
+				parentEngine.server.shutdown();
+			else
+			{
+				parentEngine.client.disconnectFromServer();
+				parentEngine.client.disconnect();
+			}
+		}
+			online=false;
+			mainTimer.stop();
+			exit();
+			glDraw.dispose();
+			parentEngine.mainMenu.open();		
+	}
+
 	private void inTime() {
+		long GameTimeBuf=System.currentTimeMillis();
 		world.clear();
-		actor.move(control.movePad, map);
-		for (int i = 0; i < map.blocks.size(); i++)
-			world.add(Obj.parseObj(map.blocks.get(i), models));
 		if (online)
 		{
 			onlineInTime();
 		}
 		else {
-			world.add(Obj.parseObj(actor, models));
+			world.add(actor);
 		}
-		Camera cam = actor.getCamera();
-		for (int i = 0; i < players.size(); i++)
-		{
-			world.add(Obj.parseObj(players.get(i), models));
-		}
+		
+		world.addAll(map.blocks);
+		world.addAll(bullets);
+		world.addAll(players);
+		
+		actor.move(control.movePad, world);
+		
+		Camera cam = getCamera(world,actor);
+		if (cam==null)//не успел добавить актора через сеть
+			cam=actor.getCamera(world);
+		long DrawTimeBuf=System.currentTimeMillis();
 		glDraw.draw(world, cam);
 		if (control.mouseIsDown) {
 			Bullet newBullet = actor.fire();
-			bullets.add(newBullet);
-			world.add(Obj.parseObj(newBullet, models));
-		}
-		for (int i = 0; i < bullets.size(); i++) {
-			if (bullets.get(i).isDestoyed(map)) {
-				world.remove(bullets.get(i));
-				bullets.remove(i);
-
+			if (online)
+			{
+				parentEngine.client.sendMessage(NetInteraction.ADD_BULLET);
+				parentEngine.client.sendObject(newBullet.clone());
+			}
+			else
+			{
+				bullets.add(newBullet);
 			}
 		}
+		for (int i = 0; i < bullets.size(); i++) {
+			if (bullets.get(i).isDestoyed(world)) {
+				world.remove(bullets.get(i));
+				bullets.remove(i);
+			}
+		}
+		//print("game fps: "+(System.currentTimeMillis()-GameTimeBuf));
+	}
+
+	private Camera getCamera(World world, Actor actor) {
+		for (int i=0; i<world.size();i++)
+		{
+			if (actor.id==world.get(i).id)
+			{
+				return world.get(i).getCamera(world);
+			}
+		}
+		return null;
 	}
 
 	private void onlineInTime() {
 		double timeBuf=System.currentTimeMillis();
 		parentEngine.client.sendMessage(NetInteraction.REFRESH_ME);
 		parentEngine.client.sendObject(actor.clone());
-		print("fps:"+(System.currentTimeMillis()-timeBuf),2);
+		//print("net fps: "+(System.currentTimeMillis()-timeBuf));
 	}
 
 	public void newGame(boolean isOnline) {
-		open();
 		print("new game");
+		open();
 		LoadModels();
+		if (!online)
+			map.generate();
+		world.addAll(map.blocks);
 		online = isOnline;
 		bullets.clear();
 		actor = new Actor();
-		actor.create(map);
-		// если онлайн сгенерить ботов
+		actor.create(world);
+		print("init GL");
 		canvas = glDraw.init(openGLComposite);
 		setListeners();
 		mainTimer = new Timer(parentEngine.getDisplay(), FPS, new Runnable() {
@@ -197,10 +230,15 @@ public class Game extends DebugClass {
 	}
 
 	private void LoadModels() {
+		print("load models");
 		Model modelBuf = new Model();
-		modelBuf.color = new Color(null, 0, 0, 200);
+		modelBuf.color = new Color(null, 255, 0, 0);
 		modelBuf.loadModel("player");
 		models.put("player", modelBuf);
+		modelBuf = new Model();
+		modelBuf.color = new Color(null, 0, 0, 250);
+		modelBuf.loadModel("player");
+		models.put("actor", modelBuf);
 		modelBuf = new Model();
 		modelBuf.color = new Color(null, 250, 250, 250);
 		modelBuf.loadModel("bullet");
